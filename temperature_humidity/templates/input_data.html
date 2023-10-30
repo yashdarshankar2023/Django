@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Input Temperature and Humidity</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+        }
+
+        h1 {
+            background-color: #333;
+            color: white;
+            padding: 20px;
+        }
+
+        .container {
+            width: 80%;
+            max-width: 800px;
+            margin: 20px auto;
+            background-color: #fff;
+            padding: 20px;
+            border: 1px solid #ccc;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        form {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        label {
+            flex: 1;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            flex: 2;
+            padding: 5px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            background-color: #333;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table, th, td {
+            border: 1px solid #ccc;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #333;
+            color: white;
+        }
+
+        button.delete {
+            background-color: #f00;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        button.delete:hover {
+            background-color: #c00;
+        }
+
+        #deleteTableButton {
+            background-color: #f00;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+
+        #deleteTableButton:hover {
+            background-color: #c00;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+<body>
+    <h1>Input Temperature and Humidity</h1>
+    <div class="container">
+        <form method="post" id="dataForm">
+            {% csrf_token %}
+            <label for="temperature">Temperature (°C):</label>
+            <input type="number" id="temperature" name="temperature" required>
+            <label for="humidity">Humidity (%):</label>
+            <input type="number" id="humidity" name="humidity" required>
+            <button type="submit">Submit</button>
+        </form>
+
+        <h2>Delete Table on Button Click</h2>
+        <button id="deleteTableButton">Delete Table</button>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Temperature (°C)</th>
+                    <th>Humidity (%)</th>
+                    <th>action</th>
+                </tr>
+            </thead>
+            <tbody id="dataDisplay"></tbody>
+        </table>
+    </div>
+    <canvas id="temperatureHumidityChart" width="400" height="200"></canvas>
+    <script>
+    
+        var storedData = JSON.parse(localStorage.getItem('data')) || [];
+
+        function renderTable() {
+            var dataDisplay = document.getElementById('dataDisplay');
+            dataDisplay.innerHTML = ''; // Clear the existing table
+
+            storedData.forEach(function (row, index) {
+                var newRow = dataDisplay.insertRow();
+                newRow.id = 'row_' + index; // Assign an ID to the row
+                Object.values(row).forEach(function (value) {
+                    var cell = newRow.insertCell();
+                    cell.appendChild(document.createTextNode(value));
+                });
+
+        
+                var deleteButtonCell = newRow.insertCell();
+                var deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Delete';
+                deleteButton.className = 'delete';
+                deleteButton.addEventListener('click', function () {
+                    deleteRow(index);
+                });
+                deleteButtonCell.appendChild(deleteButton);
+            });
+        }
+
+        renderTable();
+
+ 
+        var deleteTableButton = document.getElementById('deleteTableButton');
+
+
+        deleteTableButton.addEventListener('click', function () {
+
+            localStorage.removeItem('data');
+
+
+            var dataDisplay = document.getElementById('dataDisplay');
+            dataDisplay.innerHTML = '';
+        });
+
+
+        function deleteRow(index) {
+      
+            var dataDisplay = document.getElementById('dataDisplay');
+            var row = document.getElementById('row_' + index);
+            dataDisplay.deleteRow(row.rowIndex);
+
+            storedData.splice(index, 1);
+            localStorage.setItem('data', JSON.stringify(storedData));
+
+  
+            renderTable();
+        }
+
+        var dataForm = document.getElementById('dataForm');
+        dataForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            var formData = new FormData(dataForm);
+            var temperature = formData.get('temperature');
+            var humidity = formData.get('humidity');
+
+       
+            var newData = {
+                ID: storedData.length,
+                'Temperature (°C)': temperature,
+                'Humidity (%)': humidity,
+            };
+
+      
+            storedData.push(newData);
+
+          
+                    localStorage.setItem('data', JSON.stringify(storedData));
+          
+                    renderTable();
+            
+          
+                    dataForm.reset();
+                });
+          
+var chartCanvas = document.getElementById('temperatureHumidityChart');
+var chartData = [];
+
+
+function updateChart() {
+    chartData = storedData.map(function (row) {
+        return {
+            x: row['Temperature (°C)'],
+            y: row['Humidity (%)'],
+        };
+    });
+
+    var ctx = chartCanvas.getContext('2d');
+
+
+    var chart = new Chart(ctx, {
+        type: 'scatter', 
+        data: {
+            datasets: [{
+                label: 'Temperature vs. Humidity',
+                data: chartData,
+                backgroundColor: 'rgba(75, 192, 192, 1)', 
+                pointRadius: 5, 
+                pointHoverRadius: 5, 
+                showLine: true, 
+                fill: false, 
+                borderColor: 'rgba(75, 192, 192, 1)', 
+            }],
+        },
+        options: {
+            scales: {
+                x: [{
+                    type: 'linear',
+                    position: 'bottom',
+                    title: {
+                        display: true,
+                        text: 'Temperature (°C)',
+                    },
+                }],
+                y: [{
+                    type: 'linear',
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Humidity (%)',
+                    },
+                }],
+            },
+        },
+    });
+}
+
+
+updateChart();
+
+
+</script>
+</body>
+</html>
